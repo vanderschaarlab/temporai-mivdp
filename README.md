@@ -10,18 +10,14 @@
 [![Twitter](https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Twitter)](https://twitter.com/temporai-mivdp)
 -->
 
-[![Project generated with PyScaffold](https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold)](https://pyscaffold.org/)
+<!-- exclude_docs -->
+[![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE.txt)
 
-# temporai-mivdp
+[![slack](https://img.shields.io/badge/chat-on%20slack-purple?logo=slack)](https://join.slack.com/t/vanderschaarlab/shared_invite/zt-1u2rmhw06-sHS5nQDMN3Ka2Zer6sAU6Q)
+[![about](https://img.shields.io/badge/about-The%20van%20der%20Schaar%20Lab-blue)](https://www.vanderschaar-lab.com/)
+<!-- exclude_docs_end -->
 
-> TemporAI-MIVDP: Adaptation of MIMIC-IV-Data-Pipeline for TemporAI
+# <img src="docs/assets/TemporAI_MIVDP_Logo_Icon.png" height=25> TemporAI-MIVDP
 
-A longer description of your project goes here...
-
-
-<!-- pyscaffold-notes -->
-
-## Note
-
-This project has been set up using PyScaffold 4.5. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
+**TemporAI-MIVDP**: Adaptation of MIMIC-IV-Data-Pipeline for TemporAI.
