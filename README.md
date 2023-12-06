@@ -20,4 +20,4 @@
 
 # <img src="docs/assets/TemporAI_MIVDP_Logo_Icon.png" height=25> TemporAI-MIVDP
 
-**TemporAI-MIVDP**: Adaptation of MIMIC-IV-Data-Pipeline for TemporAI.
+**TemporAI-MIVDP**: Adaptation of [MIMIC-IV-Data-Pipeline](https://github.com/healthylaife/MIMIC-IV-Data-Pipeline) for TemporAI.
