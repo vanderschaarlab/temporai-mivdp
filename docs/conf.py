@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.join(__location__, "../src"))
 try:  # for Sphinx >= 1.7
     from sphinx.ext import apidoc
 except ImportError:
-    from sphinx import apidoc
+    from sphinx import apidoc  # pyright: ignore
 
 output_dir = os.path.join(__location__, "api")
 module_dir = os.path.join(__location__, "../src/tempor")
@@ -51,7 +51,7 @@ try:
         args = args[1:]
 
     apidoc.main(args)
-except Exception as e:
+except Exception as e:  # pylint: disable=broad-except
     print("Running `sphinx-apidoc` failed!\n{}".format(e))
 
 # -- General configuration ---------------------------------------------------
@@ -106,7 +106,7 @@ master_doc = "index"
 
 # General information about the project.
 project = "temporai-mivdp"
-copyright = "2023, Evgeny Saveliev"
+copyright = "2023, Evgeny Saveliev"  # pylint: disable=redefined-builtin
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
