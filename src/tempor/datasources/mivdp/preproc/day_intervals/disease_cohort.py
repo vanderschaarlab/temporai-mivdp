@@ -2,6 +2,8 @@
 # https://github.com/healthylaife/MIMIC-IV-Data-Pipeline
 # preprocessing/day_intervals_preproc/disease_cohort.py
 
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -84,10 +86,15 @@ def preproc_icd_module(module_path: str, ICD10_code: str, icd_map_path: str) -> 
     return pos_ids
 
 
+ICD_MAP_PATH = os.path.realpath(
+    os.path.join(os.path.dirname(__file__), "../../utils/mappings/ICD9_to_ICD10_mapping.txt")
+)
+
+
 def extract_diag_cohort(
     label: str,
     module_path,
-    icd_map_path="./utils/mappings/ICD9_to_ICD10_mapping.txt",
+    icd_map_path=ICD_MAP_PATH,
 ) -> pd.DataFrame:
     cohort = preproc_icd_module(module_path, label, icd_map_path)
     return cohort

@@ -3,13 +3,20 @@
 # preprocessing/day_intervals_preproc/day_intervals_cohort.py
 
 import datetime
-from typing import Optional, Tuple
+import os
+from typing import TYPE_CHECKING, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from typing_extensions import Literal
 
+from ...utils.common import pd_v2_compat_append
 from . import disease_cohort
+
+# NOTE:
+# Where pd_v2_compat_append() is used is highly inefficient (row-wise appending).
+# This should be a simple point of performance improvement.
 
 
 def get_visit_pts(
@@ -20,7 +27,7 @@ def get_visit_pts(
     disch_col: str,
     adm_visit_col: Optional[str],
     use_admn: bool,
-    disease_label: str,
+    disease_label: Optional[str],
     use_ICU: bool,
 ) -> pd.DataFrame:
     """Combines the MIMIC-IV core/patients table information with either the ``icu/icustays`` or ``core/admissions``
@@ -38,11 +45,11 @@ def get_visit_pts(
         disch_col (str):
             Column for visit end date information (normally ``"dischtime"`` or ``"outtime"``).
         adm_visit_col (Optional[str]):
-            TBC
+            Column for visit identifier for individual patient visits (normally ``"hadm_id"``).
         use_admn (bool):
-            TBC
-        disease_label (str):
-            TBC
+            Flag of whether to use the readmission label. Defaults to `False`.
+        disease_label (Optional[str]):
+            A disease filter to apply to the label (i.e. "admitted due to"). If `None`, no filter is applied.
         use_ICU (bool):
             Describes whether to specifically look at ICU visits in ``icu/icustays`` OR look at general admissions from
             ``core/admissions``.
@@ -72,7 +79,7 @@ def get_visit_pts(
             )
             visit = visit.merge(pts, how="inner", left_on="subject_id", right_on="subject_id")
             visit = visit.loc[(visit.dod.isna()) | (visit.dod >= visit[disch_col])]
-            if len(disease_label):
+            if disease_label is not None:
                 hids = disease_cohort.extract_diag_cohort(disease_label, mimic4_path)
                 visit = visit[visit["hadm_id"].isin(hids["hadm_id"])]  # pyright: ignore
                 print("[ READMISSION DUE TO " + disease_label + " ]")
@@ -98,7 +105,7 @@ def get_visit_pts(
         if use_admn:
             # Remove hospitalizations with a death; impossible for readmission for such visits:
             visit = visit.loc[visit.hospital_expire_flag == 0]
-        if len(disease_label):
+        if disease_label is not None:
             hids = disease_cohort.extract_diag_cohort(disease_label, mimic4_path)
             visit = visit[visit["hadm_id"].isin(hids["hadm_id"])]  # pyright: ignore
             print("[ READMISSION DUE TO " + disease_label + " ]")
@@ -222,9 +229,9 @@ def validate_row(row, ctrl, invalid, max_year, disch_col, valid_col, gap):
     print(gap)
     pred_year = (row[disch_col] + gap).year
     if max_year < pred_year and pred_year > row[valid_col]:
-        invalid = invalid.append(row)
+        invalid = pd_v2_compat_append(invalid, row)
     else:
-        ctrl = ctrl.append(row)
+        ctrl = pd_v2_compat_append(ctrl, row)
     return ctrl, invalid
 
 
@@ -282,7 +289,7 @@ def partition_by_readmit(
         if group.shape[0] <= 1:
             # ctrl, invalid = validate_row(group.iloc[0], ctrl, invalid, max_year, disch_col, valid_col, gap)
             # A group with 1 row has no readmission; goes to ctrl
-            ctrl = ctrl.append(group.iloc[0])  # pyright: ignore
+            ctrl = pd_v2_compat_append(ctrl, group.iloc[0])  # pyright: ignore
         else:
             for idx in range(group.shape[0] - 1):
                 visit_time = group.iloc[idx][disch_col]  # For each index (a unique hadm_id), get its timestamp
@@ -295,18 +302,18 @@ def partition_by_readmit(
                     ].shape[0]
                     >= 1
                 ):  # If ANY rows meet above requirements, a readmission has occurred after that visit
-                    case = case.append(group.iloc[idx])  # pyright: ignore
+                    case = pd_v2_compat_append(case, group.iloc[idx])  # pyright: ignore
                 else:
                     # If no readmission is found, only add to ctrl if prediction window is guaranteed to be within the
                     # time range of the dataset (2008-2019). Visits with prediction windows existing in potentially
                     # out-of-range dates (like 2018-2020) are excluded UNLESS the prediction window takes place the
                     # same year as the visit, in which case it is guaranteed to be within 2008-2019.
 
-                    ctrl = ctrl.append(group.iloc[idx])  # pyright: ignore
+                    ctrl = pd_v2_compat_append(ctrl, group.iloc[idx])  # pyright: ignore
 
             # ctrl, invalid = validate_row(group.iloc[-1], ctrl, invalid, max_year, disch_col, valid_col, gap)
             # The last hadm_id date-wise is guaranteed to have no readmission logically.
-            ctrl = ctrl.append(group.iloc[-1])  # pyright: ignore
+            ctrl = pd_v2_compat_append(ctrl, group.iloc[-1])  # pyright: ignore
             # print(f"[ {gap.days} DAYS ] {case.shape[0] + ctrl.shape[0]}/{df.shape[0]} {visit_col}s processed")
 
     print("[ READMISSION LABELS FINISHED ]")
@@ -428,45 +435,100 @@ def get_case_ctrls(
     # print(f"[ {gap.days} DAYS ] {invalid.shape[0]} hadm_ids are invalid")
 
 
+Label = Literal["Mortality", "Readmission", "Length of Stay"]
+
+
 def extract_data(
     version: str,
-    use_ICU: str,
-    label: str,
+    use_ICU: bool,
+    label: Label,
     time: int,
-    icd_code: str,
-    root_dir,
-    disease_label,
-    cohort_output=None,
-    summary_output=None,
-):
-    # TODO: The docstring here.
+    icd_code: Optional[str],
+    root_dir: str,
+    disease_label: Optional[str],
+    cohort_output: Optional[str] = None,
+    summary_output: Optional[str] = None,
+) -> Tuple[pd.DataFrame, str]:
+    """Prepare and save the cohort and summary files for a the given data settings.
+
+    Note:
+        Example disease codes for ``icd_code`` and ``disease_label`` are:
+        - Heart failure: ``"I50"``.
+        - CAD (Coronary Artery Disease): ``"I25"``.
+        - CKD (Chronic Kidney Disease): ``"N18"``.
+        - COPD (Chronic obstructive pulmonary disease): ``"J44"``.
+
+    Args:
+        version (str):
+            MIMIC-IV version, e.g. ``"1.0"``.
+        use_ICU (bool):
+            String indicating whether to extract for the ICU (`True`) or non-ICU (`False`) data.
+        label (Label):
+            Label to use for the cohort.
+        time (int):
+            The time associated with the label.  If ``label`` is ``"Readmission"``, this is the gap between admissions
+            in days. If ``label`` is ``"Length of Stay"``, this is the minimum length of stay to consider, in days.
+            If ``label`` is ``"Mortality"``, this is ignored.
+        icd_code (Optional[str]):
+            The ICD code to use as a disease filter for the cohort. If `None`, no filter is applied.
+        root_dir (str):
+            Data root directory. The MIMIC version subdirectory (e.g. ``"1.0"``) is expected to be found under this.
+        disease_label (Optional[str]):
+            A disease filter to apply to the label (i.e. "admitted due to"). If `None`, no filter is applied.
+        cohort_output (Optional[str], optional):
+            Custom cohort file descriptor, if `None`, will generate automatically based on the inputs.
+            Defaults to `None`.
+        summary_output (Optional[str], optional):
+            Custom summary file descriptor, if `None`, will generate automatically based on the inputs.
+            Defaults to `None`.
+
+    Returns:
+        Tuple[pd.DataFrame, str]: ``(cohort, cohort_output)``, cohort dataframe and the cohort file descriptor.
+    """
+
+    use_ICU_str = "ICU" if use_ICU else "Non-ICU"
 
     print(f"===========MIMIC-IV v{version}============")
     if not cohort_output:
         cohort_output = (
-            "cohort_" + use_ICU.lower() + "_" + label.lower().replace(" ", "_") + "_" + str(time) + "_" + disease_label
+            "cohort_"
+            + use_ICU_str.lower()
+            + "_"
+            + label.lower().replace(" ", "_")
+            + "_"
+            + str(time)
+            + "_"
+            + (disease_label if disease_label is not None else "")
         )
     if not summary_output:
         summary_output = (
-            "summary_" + use_ICU.lower() + "_" + label.lower().replace(" ", "_") + "_" + str(time) + "_" + disease_label
+            "summary_"
+            + use_ICU_str.lower()
+            + "_"
+            + label.lower().replace(" ", "_")
+            + "_"
+            + str(time)
+            + "_"
+            + (disease_label if disease_label is not None else "")
         )
 
-    if icd_code == "No Disease Filter":
-        if len(disease_label):
+    if icd_code is None:
+        if disease_label is not None:
             print(
-                f"EXTRACTING FOR: | {use_ICU.upper()} | {label.upper()} DUE TO {disease_label.upper()} | {str(time)} | "
+                f"EXTRACTING FOR: | {use_ICU_str.upper()} | {label.upper()} DUE TO {disease_label.upper()} | "
+                f"{str(time)} | "
             )
         else:
-            print(f"EXTRACTING FOR: | {use_ICU.upper()} | {label.upper()} | {str(time)} |")
+            print(f"EXTRACTING FOR: | {use_ICU_str.upper()} | {label.upper()} | {str(time)} |")
     else:
-        if len(disease_label):
+        if disease_label is not None:
             print(
-                f"EXTRACTING FOR: | {use_ICU.upper()} | {label.upper()} DUE TO {disease_label.upper()} | "
+                f"EXTRACTING FOR: | {use_ICU_str.upper()} | {label.upper()} DUE TO {disease_label.upper()} | "
                 f"ADMITTED DUE TO {icd_code.upper()} | {str(time)} |"
             )
         else:
             print(
-                f"EXTRACTING FOR: | {use_ICU.upper()} | {label.upper()} | "
+                f"EXTRACTING FOR: | {use_ICU_str.upper()} | {label.upper()} | "
                 f"ADMITTED DUE TO {icd_code.upper()} | {str(time)} |"
             )
     # print(label)
@@ -486,11 +548,9 @@ def extract_data(
     # print(use_los)
     if use_los:
         los = time
-    ICU = use_ICU
-    use_ICU_bool = use_ICU == "ICU"  # Change to boolean value
-    use_disease = icd_code != "No Disease Filter"
+    use_disease = icd_code is not None
 
-    if use_ICU_bool:
+    if use_ICU:
         group_col = "subject_id"
         visit_col = "stay_id"
         admit_col = "intime"
@@ -506,7 +566,7 @@ def extract_data(
         adm_visit_col = None
 
     pts = get_visit_pts(
-        mimic4_path=root_dir + f"/mimiciv/{version}/",
+        mimic4_path=root_dir + f"/{version}/",
         group_col=group_col,
         visit_col=visit_col,
         admit_col=admit_col,
@@ -514,7 +574,7 @@ def extract_data(
         adm_visit_col=adm_visit_col,
         use_admn=use_admn,
         disease_label=disease_label,
-        use_ICU=use_ICU_bool,
+        use_ICU=use_ICU,
     )
     # print("pts",pts.head())
 
@@ -573,12 +633,14 @@ def extract_data(
         raise ValueError("No label specified")
     # print(cohort.head())
 
-    if use_ICU_bool:
+    if use_ICU:
         cols.append(adm_visit_col)  # type: ignore
     # print(cohort.head())
 
     if use_disease:
-        hids = disease_cohort.extract_diag_cohort(icd_code, root_dir + f"/mimiciv/{version}/")
+        if TYPE_CHECKING:
+            assert icd_code is not None  # nosec: B101
+        hids = disease_cohort.extract_diag_cohort(icd_code, os.path.join(root_dir, f"{version}/"))
         # print(hids.shape)
         # print(cohort.shape)
         # print(len(list(set(hids['hadm_id'].unique()).intersection(set(cohort['hadm_id'].unique())))))
@@ -588,9 +650,12 @@ def extract_data(
         summary_output = summary_output + "_" + icd_code
     # print(cohort[cols].head())
 
+    output_dir = os.path.join(root_dir, "data", "cohort")
+    os.makedirs(output_dir, exist_ok=True)
+
     # Save output:
     cohort[cols].to_csv(
-        root_dir + "/data/cohort/" + cohort_output + ".csv.gz",
+        os.path.join(output_dir, cohort_output + ".csv.gz"),
         index=False,
         compression="gzip",
     )
@@ -598,19 +663,20 @@ def extract_data(
 
     summary = "\n".join(
         [
-            f"{label} FOR {ICU} DATA",
+            f"{label} FOR {use_ICU_str} DATA",
             f"# Admission Records: {cohort.shape[0]}",
             f"# Patients: {cohort[group_col].nunique()}",
-            f"# Positive cases: {cohort[cohort['label']==1].shape[0]}",
-            f"# Negative cases: {cohort[cohort['label']==0].shape[0]}",
+            f"# Positive cases: {cohort[cohort['label'] == 1].shape[0]}",
+            f"# Negative cases: {cohort[cohort['label'] == 0].shape[0]}",
         ]
     )
 
     # Save basic summary of data:
-    with open(f"./data/cohort/{summary_output}.txt", "w", encoding="utf8") as f:
+    summary_path = os.path.join(output_dir, summary_output + ".txt")
+    with open(summary_path, "w", encoding="utf8") as f:
         f.write(summary)
 
     print("[ SUMMARY SUCCESSFULLY SAVED ]")
     print(summary)
 
-    return cohort_output
+    return cohort, cohort_output

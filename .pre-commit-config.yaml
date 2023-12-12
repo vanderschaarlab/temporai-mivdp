@@ -9,6 +9,7 @@ repos:
     args: ['--markdown-linebreak-ext=md']
   - id: check-added-large-files
     args: ['--maxkb=1000']
+    exclude: ^src/tempor/datasources/mivdp/utils/mappings/
   - id: check-ast
   - id: check-case-conflict
   - id: check-json
