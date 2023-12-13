@@ -9,28 +9,54 @@ import os
 from typing import Optional, Tuple
 
 import pandas as pd
+from typing_extensions import Literal, get_args
 
 from ...utils import icu_preprocess_util, outlier_removal, uom_conversion
 from ..cohort.disease_cohort import ICD_MAP_PATH
+
+OutDfs = Tuple[
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+]
 
 
 def feature_icu(
     cohort_output: str,
     root_dir: str,
-    version_path: str,
+    version: str,
     diag_flag: bool = True,
     out_flag: bool = True,
     chart_flag: bool = True,
     proc_flag: bool = True,
     med_flag: bool = True,
-) -> Tuple[
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-]:
-    mimic_dir = os.path.join(root_dir, f"{version_path}")
+) -> OutDfs:
+    """Extracts features from ICU data.
+
+    Args:
+        cohort_output (str):
+            Cohort output file name.
+        root_dir (str):
+            Root directory of the MIMIC-IV dataset.
+        version (str):
+            MIMIC-IV version string, e.g. ``"v1_0"``.
+        diag_flag (bool, optional):
+            Whether to extract diagnosis data. Defaults to `True`.
+        out_flag (bool, optional):
+            Whether to extract output events data. Defaults to `True`.
+        chart_flag (bool, optional):
+            Whether to extract chart events data. Defaults to `True`.
+        proc_flag (bool, optional):
+            Whether to extract procedures data. Defaults to `True`.
+        med_flag (bool, optional):
+            Whether to extract medications data. Defaults to `True`.
+
+    Returns:
+        OutDfs: Output dataframes ``diag, out, chart, proc, med``, depending on the flags.
+    """
+    mimic_dir = os.path.join(root_dir, f"{version}")
     out_dir = os.path.join(root_dir, "data")
 
     out_cohort_dir = os.path.join(out_dir, "cohort")
@@ -150,35 +176,83 @@ def feature_icu(
     return diag, out, chart, proc, med
 
 
+GroupOption = Literal[
+    "both",  # Keep both ICD-9 and ICD-10 codes
+    "convert",  # Convert ICD-9 to ICD-10 codes
+    "convert_group",  # Convert ICD-9 to ICD-10 and group ICD-10 codes
+]
+
+
 def preprocess_features_icu(
-    cohort_output,  # pylint: disable=unused-argument
-    diag_flag,
-    group_diag,
-    chart_flag,
-    clean_chart,
-    impute_outlier_chart,
-    thresh,
-    left_thresh,
-):
+    cohort_output: str,  # pylint: disable=unused-argument
+    root_dir: str,
+    diag_flag: bool,
+    group_diag: GroupOption,
+    chart_flag: bool,
+    clean_chart: bool,
+    impute_outlier_chart: bool,
+    thresh: int,
+    left_thresh: int,
+) -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+    """Performs grouping on diagnosis data and/or outlier removal and imputation on chart events data.
+
+    Args:
+        cohort_output (str):
+            Cohort output file name.
+        root_dir (str):
+            Root directory of the MIMIC-IV dataset.
+        dia_flag (bool):
+            Whether to process diagnosis data.
+        group_diag (GroupOption):
+            Grouping option for diagnosis data.
+            ``"both"``: Keep both ICD-9 and ICD-10 codes.
+            ``"convert"``: Convert ICD-9 to ICD-10 codes.
+            ``"convert_group"``: Convert ICD-9 to ICD-10 and group ICD-10 codes.
+            Only applicable if ``diag_flag`` is `True`.
+        chart_flag (bool):
+            Whether to process chart events data.
+        clean_chart (bool):
+            Whether to clean chart events data. Only applicable if ``chart_flag`` is `True`.
+        impute_outlier_chart (bool):
+            Whether to impute outliers in chart events data. Only applicable if ``chart_flag`` is `True`.
+        thresh (int):
+            (Right/upper) threshold for outlier removal. Only applicable if ``chart_flag`` is `True`.
+        left_thresh (int):
+            (Left/lower) threshold for outlier removal. Only applicable if ``chart_flag`` is `True`.
+
+    Returns:
+        Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
+            Dataframes ``diag, chart``, depending on the flags.
+    """
+    if group_diag not in get_args(GroupOption):
+        raise ValueError(f"Invalid group_diag option {group_diag}, expected one of {get_args(GroupOption)}")
+
+    diag, chart = None, None
+
+    out_dir = os.path.join(root_dir, "data")
+    out_features_dir = os.path.join(out_dir, "features")
+
     if diag_flag:
         print("[PROCESSING DIAGNOSIS DATA]")
-        diag = pd.read_csv("./data/features/preproc_diag_icu.csv.gz", compression="gzip", header=0)
-        if group_diag == "Keep both ICD-9 and ICD-10 codes":
+        diag = pd.read_csv(os.path.join(out_features_dir, "preproc_diag_icu.csv.gz"), compression="gzip", header=0)
+        if group_diag == "both":
             diag["new_icd_code"] = diag["icd_code"]
-        if group_diag == "Convert ICD-9 to ICD-10 codes":
+        if group_diag == "convert":
             diag["new_icd_code"] = diag["root_icd10_convert"]
-        if group_diag == "Convert ICD-9 to ICD-10 and group ICD-10 codes":
+        if group_diag == "convert_group":
             diag["new_icd_code"] = diag["root"]
 
         diag = diag[["subject_id", "hadm_id", "stay_id", "new_icd_code"]].dropna()
         print("Total number of rows", diag.shape[0])
-        diag.to_csv("./data/features/preproc_diag_icu.csv.gz", compression="gzip", index=False)
+        diag.to_csv(os.path.join(out_features_dir, "preproc_diag_icu.csv.gz"), compression="gzip", index=False)
         print("[SUCCESSFULLY SAVED DIAGNOSIS DATA]")
 
     if chart_flag:
         if clean_chart:
             print("[PROCESSING CHART EVENTS DATA]")
-            chart = pd.read_csv("./data/features/preproc_chart_icu.csv.gz", compression="gzip", header=0)
+            chart = pd.read_csv(
+                os.path.join(out_features_dir, "preproc_chart_icu.csv.gz"), compression="gzip", header=0
+            )
             chart = outlier_removal.outlier_imputation(
                 chart, "itemid", "valuenum", thresh, left_thresh, impute_outlier_chart
             )
@@ -192,11 +266,13 @@ def preprocess_features_icu(
 
             print("Total number of rows", chart.shape[0])
             chart.to_csv(
-                "./data/features/preproc_chart_icu.csv.gz",
+                os.path.join(out_features_dir, "preproc_chart_icu.csv.gz"),
                 compression="gzip",
                 index=False,
             )
             print("[SUCCESSFULLY SAVED CHART EVENTS DATA]")
+
+    return diag, chart
 
 
 def generate_summary_icu(diag_flag, proc_flag, med_flag, out_flag, chart_flag):
