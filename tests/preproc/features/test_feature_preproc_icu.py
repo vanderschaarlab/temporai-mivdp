@@ -139,16 +139,16 @@ class TestPreprocessFeaturesIcu:
         [
             # No ICD code or disease label:
             dict(use_ICU=True, time=0, label="Mortality", icd_code=None, disease_label=None),
-            # dict(use_ICU=True, time=30, label="Readmission", icd_code=None, disease_label=None),
-            # dict(use_ICU=True, time=120, label="Readmission", icd_code=None, disease_label=None),
-            # dict(use_ICU=True, time=3, label="Length of Stay", icd_code=None, disease_label=None),
-            # dict(use_ICU=True, time=7, label="Length of Stay", icd_code=None, disease_label=None),
-            # # With ICD code:
-            # dict(use_ICU=True, time=0, label="Mortality", icd_code="I50", disease_label=None),
-            # dict(use_ICU=True, time=0, label="Mortality", icd_code="J44", disease_label=None),
-            # # With disease label:
-            # dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="I50"),
-            # dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="J44"),
+            dict(use_ICU=True, time=30, label="Readmission", icd_code=None, disease_label=None),
+            dict(use_ICU=True, time=120, label="Readmission", icd_code=None, disease_label=None),
+            dict(use_ICU=True, time=3, label="Length of Stay", icd_code=None, disease_label=None),
+            dict(use_ICU=True, time=7, label="Length of Stay", icd_code=None, disease_label=None),
+            # With ICD code:
+            dict(use_ICU=True, time=0, label="Mortality", icd_code="I50", disease_label=None),
+            dict(use_ICU=True, time=0, label="Mortality", icd_code="J44", disease_label=None),
+            # With disease label:
+            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="I50"),
+            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="J44"),
         ],
     )
     def test_grouping_common_cases(self, mimiciv_1_0_tiny: Tuple[Path, str], args, group_diag):
