@@ -1,6 +1,9 @@
-# Based on
-# https://github.com/healthylaife/MIMIC-IV-Data-Pipeline
-# preprocessing/day_intervals_preproc/disease_cohort.py
+"""Disease cohort module.
+
+Based on:
+https://github.com/healthylaife/MIMIC-IV-Data-Pipeline
+``preprocessing/day_intervals_preproc/disease_cohort.py``
+"""
 
 import os
 

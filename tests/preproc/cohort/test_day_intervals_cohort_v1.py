@@ -4,7 +4,7 @@ from typing import Tuple
 import pandas as pd
 import pytest
 
-from tempor.datasources.mivdp.preproc.day_intervals import day_intervals_cohort_v1
+from tempor.datasources.mivdp.preproc.cohort import day_intervals_cohort_v1
 
 EXPECTED_COLUMNS = [
     "Age",

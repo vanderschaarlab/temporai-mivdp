@@ -1,3 +1,5 @@
+"""Common utilities."""
+
 from typing import Any
 
 import pandas as pd
