@@ -405,6 +405,43 @@ def features_selection_icu(
     select_out: bool,
     select_chart: bool,
 ):
+    """
+    Selects features based on the summary.
+
+    This currently requires that the user manually edit the summary files
+    (``<root_dir>/data/summary/{diag,proc,med,out,chart}_features.csv``) to select the features.
+
+    Args:
+        cohort_output (str):
+            Cohort output file name.
+        root_dir (str):
+            Root directory of the MIMIC-IV dataset.
+        diag_flag (bool):
+            Whether to select diagnosis data.
+        proc_flag (bool):
+            Whether to select procedures data.
+        med_flag (bool):
+            Whether to select medications data.
+        out_flag (bool):
+            Whether to select output events data.
+        chart_flag (bool):
+            Whether to select chart events data.
+        select_diag (bool):
+            Whether to select diagnosis data based on the summary.
+        select_med (bool):
+            Whether to select medications data based on the summary.
+        select_proc (bool):
+            Whether to select procedures data based on the summary.
+        select_out (bool):
+            Whether to select output events data based on the summary.
+        select_chart (bool):
+            Whether to select chart events data based on the summary.
+
+    Returns:
+        OutDfs:
+            Output dataframes ``diag, out, chart, proc, med``, depending on the flags.
+    """
+
     diag, out, chart, proc, med = None, None, None, None, None
 
     out_dir = os.path.join(root_dir, "data")

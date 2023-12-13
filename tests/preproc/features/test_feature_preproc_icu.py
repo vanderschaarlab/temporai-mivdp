@@ -7,6 +7,21 @@ import pytest
 from tempor.datasources.mivdp.preproc.cohort import day_intervals_cohort_v1
 from tempor.datasources.mivdp.preproc.features import feature_preproc_icu
 
+COMMON_CASES = [
+    # No ICD code or disease label:
+    dict(use_ICU=True, time=0, label="Mortality", icd_code=None, disease_label=None),
+    dict(use_ICU=True, time=30, label="Readmission", icd_code=None, disease_label=None),
+    dict(use_ICU=True, time=120, label="Readmission", icd_code=None, disease_label=None),
+    dict(use_ICU=True, time=3, label="Length of Stay", icd_code=None, disease_label=None),
+    dict(use_ICU=True, time=7, label="Length of Stay", icd_code=None, disease_label=None),
+    # With ICD code:
+    dict(use_ICU=True, time=0, label="Mortality", icd_code="I50", disease_label=None),
+    dict(use_ICU=True, time=0, label="Mortality", icd_code="J44", disease_label=None),
+    # With disease label:
+    dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="I50"),
+    dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="J44"),
+]
+
 EXPECTED_COLUMNS__FEATURE_ICU = {
     "diag": [
         "subject_id",
@@ -58,23 +73,7 @@ EXPECTED_COLUMNS__FEATURE_ICU = {
 
 class TestFeatureIcu:
     @pytest.mark.filterwarnings("ignore::pandas.errors.DtypeWarning")
-    @pytest.mark.parametrize(
-        "args",
-        [
-            # No ICD code or disease label:
-            dict(use_ICU=True, time=0, label="Mortality", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=30, label="Readmission", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=120, label="Readmission", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=3, label="Length of Stay", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=7, label="Length of Stay", icd_code=None, disease_label=None),
-            # With ICD code:
-            dict(use_ICU=True, time=0, label="Mortality", icd_code="I50", disease_label=None),
-            dict(use_ICU=True, time=0, label="Mortality", icd_code="J44", disease_label=None),
-            # With disease label:
-            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="I50"),
-            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="J44"),
-        ],
-    )
+    @pytest.mark.parametrize("args", COMMON_CASES)
     def test_common_cases(self, mimiciv_1_0_tiny: Tuple[Path, str], args):
         root_dir, version = mimiciv_1_0_tiny
 
@@ -128,23 +127,7 @@ EXPECTED_COLUMNS__PREPROCESS_FEATURES_ICU__GROUPING = {
 
 class TestPreprocessFeaturesIcu:
     @pytest.mark.parametrize("group_diag", ["both", "convert", "convert_group"])
-    @pytest.mark.parametrize(
-        "args",
-        [
-            # No ICD code or disease label:
-            dict(use_ICU=True, time=0, label="Mortality", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=30, label="Readmission", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=120, label="Readmission", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=3, label="Length of Stay", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=7, label="Length of Stay", icd_code=None, disease_label=None),
-            # With ICD code:
-            dict(use_ICU=True, time=0, label="Mortality", icd_code="I50", disease_label=None),
-            dict(use_ICU=True, time=0, label="Mortality", icd_code="J44", disease_label=None),
-            # With disease label:
-            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="I50"),
-            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="J44"),
-        ],
-    )
+    @pytest.mark.parametrize("args", COMMON_CASES)
     def test_grouping_common_cases(self, mimiciv_1_0_tiny: Tuple[Path, str], args, group_diag):
         root_dir, version = mimiciv_1_0_tiny
 
@@ -190,7 +173,53 @@ class TestPreprocessFeaturesIcu:
         print(diag.columns.tolist())
         assert sorted(diag.columns.tolist()) == sorted(EXPECTED_COLUMNS__PREPROCESS_FEATURES_ICU__GROUPING[group_diag])
 
-    # TODO: Test the outlier removal pathway.
+    @pytest.mark.filterwarnings("ignore::pandas.errors.DtypeWarning")
+    @pytest.mark.filterwarnings("ignore::pandas.errors.SettingWithCopyWarning")
+    @pytest.mark.parametrize("args", COMMON_CASES)
+    def test_cleaning_common_cases(self, mimiciv_1_0_tiny: Tuple[Path, str], args):
+        root_dir, version = mimiciv_1_0_tiny
+
+        # NOTE: This should really be taken out of here in order to be more unit test -like, and to make tests faster.
+        cohort, cohort_output = day_intervals_cohort_v1.extract_data(  # pylint: disable=unused-variable
+            version=version,
+            root_dir=root_dir.as_posix(),
+            cohort_output=None,
+            summary_output=None,
+            **args,
+        )
+        dfs = feature_preproc_icu.feature_icu(  # pylint: disable=unused-variable  # noqa: F841
+            cohort_output=cohort_output,
+            root_dir=root_dir.as_posix(),
+            version=version,
+            diag_flag=False,  # (!) Not needed for this test.
+            out_flag=False,  # Not needed for this test.
+            chart_flag=True,
+            proc_flag=False,  # Not needed for this test.
+            med_flag=False,  # Not needed for this test.
+        )
+
+        # This is the actual test:
+        diag, chart = feature_preproc_icu.preprocess_features_icu(
+            cohort_output=cohort_output,
+            root_dir=root_dir.as_posix(),
+            diag_flag=False,
+            group_diag="both",  # N/A for this test.
+            chart_flag=True,
+            clean_chart=True,
+            impute_outlier_chart=True,
+            thresh=5,
+            left_thresh=95,
+        )
+
+        assert diag is None
+
+        assert isinstance(chart, pd.DataFrame)
+
+        assert len(chart) > 0
+        assert len(chart.columns) > 0
+
+        print(chart.columns.tolist())
+        assert sorted(chart.columns.tolist()) == sorted(EXPECTED_COLUMNS__FEATURE_ICU["chart"])
 
 
 EXPECTED_COLUMNS__GENERATE_SUMMARY_ICU = {
@@ -226,23 +255,7 @@ EXPECTED_COLUMNS__GENERATE_SUMMARY_ICU = {
 
 class TestGenerateSummaryIcu:
     @pytest.mark.filterwarnings("ignore::pandas.errors.DtypeWarning")
-    @pytest.mark.parametrize(
-        "args",
-        [
-            # No ICD code or disease label:
-            dict(use_ICU=True, time=0, label="Mortality", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=30, label="Readmission", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=120, label="Readmission", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=3, label="Length of Stay", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=7, label="Length of Stay", icd_code=None, disease_label=None),
-            # With ICD code:
-            dict(use_ICU=True, time=0, label="Mortality", icd_code="I50", disease_label=None),
-            dict(use_ICU=True, time=0, label="Mortality", icd_code="J44", disease_label=None),
-            # With disease label:
-            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="I50"),
-            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="J44"),
-        ],
-    )
+    @pytest.mark.parametrize("args", COMMON_CASES)
     def test_common_cases(self, mimiciv_1_0_tiny: Tuple[Path, str], args):
         root_dir, version = mimiciv_1_0_tiny
 
@@ -316,23 +329,7 @@ EXPECTED_COLUMNS__FEATURES_SELECTION_ICU = {
 
 class TestFeaturesSelectionIcu:
     @pytest.mark.filterwarnings("ignore::pandas.errors.DtypeWarning")
-    @pytest.mark.parametrize(
-        "args",
-        [
-            # No ICD code or disease label:
-            dict(use_ICU=True, time=0, label="Mortality", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=30, label="Readmission", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=120, label="Readmission", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=3, label="Length of Stay", icd_code=None, disease_label=None),
-            dict(use_ICU=True, time=7, label="Length of Stay", icd_code=None, disease_label=None),
-            # With ICD code:
-            dict(use_ICU=True, time=0, label="Mortality", icd_code="I50", disease_label=None),
-            dict(use_ICU=True, time=0, label="Mortality", icd_code="J44", disease_label=None),
-            # With disease label:
-            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="I50"),
-            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="J44"),
-        ],
-    )
+    @pytest.mark.parametrize("args", COMMON_CASES)
     def test_common_cases(self, mimiciv_1_0_tiny: Tuple[Path, str], args):
         root_dir, version = mimiciv_1_0_tiny
 
@@ -344,7 +341,7 @@ class TestFeaturesSelectionIcu:
             summary_output=None,
             **args,
         )
-        dfs = feature_preproc_icu.feature_icu(  # pylint: disable=unused-variable  # noqa: F841
+        dfs = feature_preproc_icu.feature_icu(
             cohort_output=cohort_output,
             root_dir=root_dir.as_posix(),
             version=version,
