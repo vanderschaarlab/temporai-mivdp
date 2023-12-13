@@ -55,7 +55,7 @@ jobs:
       - name: Download test files
         run: |
           pip install requests pyzipper
-          python ${GITHUB_WORKSPACE}/scripts/get_test_data.py "${{ secrets.TEST_DATA_ID }}"" '${{ secrets.TEST_DATA_PASSWORD }}' "${GITHUB_WORKSPACE}/data_root/mimiciv"
+          python ${GITHUB_WORKSPACE}/scripts/get_test_data.py "${{ secrets.TEST_DATA_ID }}" "${{ secrets.TEST_DATA_PASSWORD }}" "${GITHUB_WORKSPACE}/data_root/mimiciv"
       - name: Install dependencies
         run: |
           pip install --upgrade pip
