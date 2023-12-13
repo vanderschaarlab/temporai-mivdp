@@ -12,12 +12,12 @@
 
 <!-- exclude_docs -->
 [![Python 3.7+](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/release/python-370/)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE.txt)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/vanderschaarlab/temporai-mivdp/tree/main/LICENSE.txt)
 
 [![slack](https://img.shields.io/badge/chat-on%20slack-purple?logo=slack)](https://join.slack.com/t/vanderschaarlab/shared_invite/zt-1u2rmhw06-sHS5nQDMN3Ka2Zer6sAU6Q)
 [![about](https://img.shields.io/badge/about-The%20van%20der%20Schaar%20Lab-blue)](https://www.vanderschaar-lab.com/)
 <!-- exclude_docs_end -->
 
-# <img src="docs/assets/TemporAI_MIVDP_Logo_Icon.png" height=25> TemporAI-MIVDP
+# <img src='https://raw.githubusercontent.com/vanderschaarlab/temporai-mivdp/main/docs/assets/TemporAI_MIVDP_Logo_Icon.png' height=25> TemporAI-MIVDP
 
 **TemporAI-MIVDP**: Adaptation of [MIMIC-IV-Data-Pipeline](https://github.com/healthylaife/MIMIC-IV-Data-Pipeline) for TemporAI.
