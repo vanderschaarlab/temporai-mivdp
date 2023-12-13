@@ -3,9 +3,20 @@ from typing import Tuple
 
 import pandas as pd
 import pytest
+from packaging.version import Version
 
 from tempor.datasources.mivdp.preproc.cohort import day_intervals_cohort_v1
 from tempor.datasources.mivdp.preproc.features import feature_preproc_icu
+
+# Pytest utilities:
+
+pandas_2 = Version(pd.__version__) >= Version("2.0.0")
+conditional_filterwarnings = (
+    pytest.mark.filterwarnings("ignore::pandas.errors.SettingWithCopyWarning") if pandas_2 else lambda x: x
+)
+
+# -------------------
+
 
 COMMON_CASES = [
     # No ICD code or disease label:
@@ -174,7 +185,7 @@ class TestPreprocessFeaturesIcu:
         assert sorted(diag.columns.tolist()) == sorted(EXPECTED_COLUMNS__PREPROCESS_FEATURES_ICU__GROUPING[group_diag])
 
     @pytest.mark.filterwarnings("ignore::pandas.errors.DtypeWarning")
-    @pytest.mark.filterwarnings("ignore::pandas.errors.SettingWithCopyWarning")
+    @conditional_filterwarnings
     @pytest.mark.parametrize("args", COMMON_CASES)
     def test_cleaning_common_cases(self, mimiciv_1_0_tiny: Tuple[Path, str], args):
         root_dir, version = mimiciv_1_0_tiny
