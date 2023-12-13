@@ -1,30 +1,54 @@
-"""ICU feature processing module.
+"""ICU feature preprocessing module.
 
 Based on:
 https://github.com/healthylaife/MIMIC-IV-Data-Pipeline
 ``preprocessing/hosp_module_preproc/feature_selection_icu.py``
 """
 
+import os
+from typing import Optional, Tuple
+
 import pandas as pd
 
 from ...utils import icu_preprocess_util, outlier_removal, uom_conversion
+from ..cohort.disease_cohort import ICD_MAP_PATH
 
 
 def feature_icu(
-    cohort_output,
-    version_path,
-    diag_flag=True,
-    out_flag=True,
-    chart_flag=True,
-    proc_flag=True,
-    med_flag=True,
-):
+    cohort_output: str,
+    root_dir: str,
+    version_path: str,
+    diag_flag: bool = True,
+    out_flag: bool = True,
+    chart_flag: bool = True,
+    proc_flag: bool = True,
+    med_flag: bool = True,
+) -> Tuple[
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+]:
+    mimic_dir = os.path.join(root_dir, f"{version_path}")
+    out_dir = os.path.join(root_dir, "data")
+
+    out_cohort_dir = os.path.join(out_dir, "cohort")
+    out_features_dir = os.path.join(out_dir, "features")
+    os.makedirs(out_features_dir, exist_ok=True)
+
+    diag = None
+    out = None
+    chart = None
+    proc = None
+    med = None
+
     if diag_flag:
         print("[EXTRACTING DIAGNOSIS DATA]")
         diag = icu_preprocess_util.preproc_icd_module(
-            "./" + version_path + "/hosp/diagnoses_icd.csv.gz",
-            "./data/cohort/" + cohort_output + ".csv.gz",
-            "./utils/mappings/ICD9_to_ICD10_mapping.txt",
+            os.path.join(mimic_dir, "hosp/diagnoses_icd.csv.gz"),
+            os.path.join(out_cohort_dir, f"{cohort_output}.csv.gz"),
+            ICD_MAP_PATH,
             map_code_colname="diagnosis_code",
         )
         diag[
@@ -36,14 +60,14 @@ def feature_icu(
                 "root_icd10_convert",
                 "root",
             ]
-        ].to_csv("./data/features/preproc_diag_icu.csv.gz", compression="gzip", index=False)
+        ].to_csv(os.path.join(out_features_dir, "preproc_diag_icu.csv.gz"), compression="gzip", index=False)
         print("[SUCCESSFULLY SAVED DIAGNOSIS DATA]")
 
     if out_flag:
         print("[EXTRACTING OUTPUT EVENTS DATA]")
         out = icu_preprocess_util.preproc_out(
-            "./" + version_path + "/icu/outputevents.csv.gz",
-            "./data/cohort/" + cohort_output + ".csv.gz",
+            os.path.join(mimic_dir, "icu/outputevents.csv.gz"),
+            os.path.join(out_cohort_dir, f"{cohort_output}.csv.gz"),
             "charttime",
             dtypes=None,
             usecols=None,
@@ -58,29 +82,31 @@ def feature_icu(
                 "intime",
                 "event_time_from_admit",
             ]
-        ].to_csv("./data/features/preproc_out_icu.csv.gz", compression="gzip", index=False)
+        ].to_csv(os.path.join(out_features_dir, "preproc_out_icu.csv.gz"), compression="gzip", index=False)
         print("[SUCCESSFULLY SAVED OUTPUT EVENTS DATA]")
 
     if chart_flag:
         print("[EXTRACTING CHART EVENTS DATA]")
         chart = icu_preprocess_util.preproc_chart(
-            "./" + version_path + "/icu/chartevents.csv.gz",
-            "./data/cohort/" + cohort_output + ".csv.gz",
+            os.path.join(mimic_dir, "icu/chartevents.csv.gz"),
+            os.path.join(out_cohort_dir, f"{cohort_output}.csv.gz"),
             "charttime",
             dtypes=None,
             usecols=["stay_id", "charttime", "itemid", "valuenum", "valueuom"],
         )
         chart = uom_conversion.drop_wrong_uom(chart, 0.95)
         chart[["stay_id", "itemid", "event_time_from_admit", "valuenum"]].to_csv(
-            "./data/features/preproc_chart_icu.csv.gz", compression="gzip", index=False
+            os.path.join(out_features_dir, "preproc_chart_icu.csv.gz"),
+            compression="gzip",
+            index=False,
         )
         print("[SUCCESSFULLY SAVED CHART EVENTS DATA]")
 
     if proc_flag:
         print("[EXTRACTING PROCEDURES DATA]")
         proc = icu_preprocess_util.preproc_proc(
-            "./" + version_path + "/icu/procedureevents.csv.gz",
-            "./data/cohort/" + cohort_output + ".csv.gz",
+            os.path.join(mimic_dir, "icu/procedureevents.csv.gz"),
+            os.path.join(out_cohort_dir, f"{cohort_output}.csv.gz"),
             "starttime",
             dtypes=None,
             usecols=["stay_id", "starttime", "itemid"],
@@ -95,14 +121,14 @@ def feature_icu(
                 "intime",
                 "event_time_from_admit",
             ]
-        ].to_csv("./data/features/preproc_proc_icu.csv.gz", compression="gzip", index=False)
+        ].to_csv(os.path.join(out_features_dir, "preproc_proc_icu.csv.gz"), compression="gzip", index=False)
         print("[SUCCESSFULLY SAVED PROCEDURES DATA]")
 
     if med_flag:
         print("[EXTRACTING MEDICATIONS DATA]")
         med = icu_preprocess_util.preproc_meds(
-            "./" + version_path + "/icu/inputevents.csv.gz",
-            "./data/cohort/" + cohort_output + ".csv.gz",
+            os.path.join(mimic_dir, "icu/inputevents.csv.gz"),
+            os.path.join(out_cohort_dir, f"{cohort_output}.csv.gz"),
         )
         med[
             [
@@ -118,8 +144,10 @@ def feature_icu(
                 "amount",
                 "orderid",
             ]
-        ].to_csv("./data/features/preproc_med_icu.csv.gz", compression="gzip", index=False)
+        ].to_csv(os.path.join(out_features_dir, "preproc_med_icu.csv.gz"), compression="gzip", index=False)
         print("[SUCCESSFULLY SAVED MEDICATIONS DATA]")
+
+    return diag, out, chart, proc, med
 
 
 def preprocess_features_icu(

@@ -345,7 +345,9 @@ def preproc_icd_module(
     map_code_colname=None,
     only_icd10=True,
 ) -> pd.DataFrame:
-    """Takes an module dataset with ICD codes and puts it in long_format, optionally mapping ICD-codes by a mapping table path"""
+    """Takes an module dataset with ICD codes and puts it in long_format,
+    optionally mapping ICD-codes by a mapping table path
+    """
 
     def get_module_cohort(
         module_path: str,
@@ -422,6 +424,7 @@ def preproc_icd_module(
         )
         print("# Admissions:  ", module.stay_id.nunique())
         print("Total rows", module.shape[0])
+
     return module
 
 
