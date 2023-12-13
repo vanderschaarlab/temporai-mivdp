@@ -275,73 +275,113 @@ def preprocess_features_icu(
     return diag, chart
 
 
-def generate_summary_icu(diag_flag, proc_flag, med_flag, out_flag, chart_flag):
+def generate_summary_icu(
+    cohort_output: str,  # pylint: disable=unused-argument
+    root_dir: str,
+    diag_flag: bool,
+    proc_flag: bool,
+    med_flag: bool,
+    out_flag: bool,
+    chart_flag: bool,
+) -> OutDfs:
+    """Generates summary of features.
+
+    Args:
+        cohort_output (str):
+            Cohort output file name.
+        root_dir (str):
+            Root directory of the MIMIC-IV dataset.
+        diag_flag (bool):
+            Whether to generate summary of diagnosis data.
+        proc_flag (bool):
+            Whether to generate summary of procedures data.
+        med_flag (bool):
+            Whether to generate summary of medications data.
+        out_flag (bool):
+            Whether to generate summary of output events data.
+        chart_flag (bool):
+            Whether to generate summary of chart events data.
+
+    Returns:
+        OutDfs:
+            Output dataframes ``summary_diag, summary_med, summary_proc, summary_out, summary_chart``,
+            depending on the flags.
+    """
+
+    summary_diag, summary_med, summary_proc, summary_out, summary_chart = None, None, None, None, None
+
+    out_dir = os.path.join(root_dir, "data")
+    out_features_dir = os.path.join(out_dir, "features")
+    out_summary_dir = os.path.join(out_dir, "summary")
+    os.makedirs(out_summary_dir, exist_ok=True)
+
     print("[GENERATING FEATURE SUMMARY]")
     if diag_flag:
-        diag = pd.read_csv("./data/features/preproc_diag_icu.csv.gz", compression="gzip", header=0)
+        diag = pd.read_csv(os.path.join(out_features_dir, "preproc_diag_icu.csv.gz"), compression="gzip", header=0)
         freq = diag.groupby(["stay_id", "new_icd_code"]).size().reset_index(name="mean_frequency")
         freq = freq.groupby(["new_icd_code"])["mean_frequency"].mean().reset_index()
         total = diag.groupby("new_icd_code").size().reset_index(name="total_count")
-        summary = pd.merge(freq, total, on="new_icd_code", how="right")
-        summary = summary.fillna(0)
-        summary.to_csv("./data/summary/diag_summary.csv", index=False)
-        summary["new_icd_code"].to_csv("./data/summary/diag_features.csv", index=False)
+        summary_diag = pd.merge(freq, total, on="new_icd_code", how="right")
+        summary_diag = summary_diag.fillna(0)
+        summary_diag.to_csv(os.path.join(out_summary_dir, "diag_summary.csv"), index=False)
+        summary_diag["new_icd_code"].to_csv(os.path.join(out_summary_dir, "diag_features.csv"), index=False)
 
     if med_flag:
-        med = pd.read_csv("./data/features/preproc_med_icu.csv.gz", compression="gzip", header=0)
+        med = pd.read_csv(os.path.join(out_features_dir, "preproc_med_icu.csv.gz"), compression="gzip", header=0)
         freq = med.groupby(["stay_id", "itemid"]).size().reset_index(name="mean_frequency")
         freq = freq.groupby(["itemid"])["mean_frequency"].mean().reset_index()
 
         missing = med[med["amount"] == 0].groupby("itemid").size().reset_index(name="missing_count")
         total = med.groupby("itemid").size().reset_index(name="total_count")
-        summary = pd.merge(missing, total, on="itemid", how="right")
-        summary = pd.merge(freq, summary, on="itemid", how="right")
+        summary_med = pd.merge(missing, total, on="itemid", how="right")
+        summary_med = pd.merge(freq, summary_med, on="itemid", how="right")
         # summary['missing%']=100*(summary['missing_count']/summary['total_count'])
-        summary = summary.fillna(0)
-        summary.to_csv("./data/summary/med_summary.csv", index=False)
-        summary["itemid"].to_csv("./data/summary/med_features.csv", index=False)
+        summary_med = summary_med.fillna(0)
+        summary_med.to_csv(os.path.join(out_summary_dir, "med_summary.csv"), index=False)
+        summary_med["itemid"].to_csv(os.path.join(out_summary_dir, "med_features.csv"), index=False)
 
     if proc_flag:
-        proc = pd.read_csv("./data/features/preproc_proc_icu.csv.gz", compression="gzip", header=0)
+        proc = pd.read_csv(os.path.join(out_features_dir, "preproc_proc_icu.csv.gz"), compression="gzip", header=0)
         freq = proc.groupby(["stay_id", "itemid"]).size().reset_index(name="mean_frequency")
         freq = freq.groupby(["itemid"])["mean_frequency"].mean().reset_index()
         total = proc.groupby("itemid").size().reset_index(name="total_count")
-        summary = pd.merge(freq, total, on="itemid", how="right")
-        summary = summary.fillna(0)
-        summary.to_csv("./data/summary/proc_summary.csv", index=False)
-        summary["itemid"].to_csv("./data/summary/proc_features.csv", index=False)
+        summary_proc = pd.merge(freq, total, on="itemid", how="right")
+        summary_proc = summary_proc.fillna(0)
+        summary_proc.to_csv(os.path.join(out_summary_dir, "proc_summary.csv"), index=False)
+        summary_proc["itemid"].to_csv(os.path.join(out_summary_dir, "proc_features.csv"), index=False)
 
     if out_flag:
-        out = pd.read_csv("./data/features/preproc_out_icu.csv.gz", compression="gzip", header=0)
+        out = pd.read_csv(os.path.join(out_features_dir, "preproc_out_icu.csv.gz"), compression="gzip", header=0)
         freq = out.groupby(["stay_id", "itemid"]).size().reset_index(name="mean_frequency")
         freq = freq.groupby(["itemid"])["mean_frequency"].mean().reset_index()
         total = out.groupby("itemid").size().reset_index(name="total_count")
-        summary = pd.merge(freq, total, on="itemid", how="right")
-        summary = summary.fillna(0)
-        summary.to_csv("./data/summary/out_summary.csv", index=False)
-        summary["itemid"].to_csv("./data/summary/out_features.csv", index=False)
+        summary_out = pd.merge(freq, total, on="itemid", how="right")
+        summary_out = summary_out.fillna(0)
+        summary_out.to_csv(os.path.join(out_summary_dir, "out_summary.csv"), index=False)
+        summary_out["itemid"].to_csv(os.path.join(out_summary_dir, "out_features.csv"), index=False)
 
     if chart_flag:
-        chart = pd.read_csv("./data/features/preproc_chart_icu.csv.gz", compression="gzip", header=0)
+        chart = pd.read_csv(os.path.join(out_features_dir, "preproc_chart_icu.csv.gz"), compression="gzip", header=0)
         freq = chart.groupby(["stay_id", "itemid"]).size().reset_index(name="mean_frequency")
         freq = freq.groupby(["itemid"])["mean_frequency"].mean().reset_index()
 
         missing = chart[chart["valuenum"] == 0].groupby("itemid").size().reset_index(name="missing_count")
         total = chart.groupby("itemid").size().reset_index(name="total_count")
-        summary = pd.merge(missing, total, on="itemid", how="right")
-        summary = pd.merge(freq, summary, on="itemid", how="right")
+        summary_chart = pd.merge(missing, total, on="itemid", how="right")
+        summary_chart = pd.merge(freq, summary_chart, on="itemid", how="right")
 
-        # summary['missing_perc']=100*(summary['missing_count']/summary['total_count'])
-        # summary=summary.fillna(0)
+        # summary_chart['missing_perc']=100*(summary_chart['missing_count']/summary_chart['total_count'])
+        # summary_chart=summary_chart.fillna(0)
         # final.groupby('itemid')['missing_count'].sum().reset_index()
         # final.groupby('itemid')['total_count'].sum().reset_index()
         # final.groupby('itemid')['missing%'].mean().reset_index()
 
-        summary = summary.fillna(0)
-        summary.to_csv("./data/summary/chart_summary.csv", index=False)
-        summary["itemid"].to_csv("./data/summary/chart_features.csv", index=False)
+        summary_chart = summary_chart.fillna(0)
+        summary_chart.to_csv(os.path.join(out_summary_dir, "chart_summary.csv"), index=False)
+        summary_chart["itemid"].to_csv(os.path.join(out_summary_dir, "chart_features.csv"), index=False)
 
     print("[SUCCESSFULLY SAVED FEATURE SUMMARY]")
+    return summary_diag, summary_med, summary_proc, summary_out, summary_chart
 
 
 def features_selection_icu(

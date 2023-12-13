@@ -197,3 +197,115 @@ class TestPreprocessFeaturesIcu:
         assert sorted(diag.columns.tolist()) == sorted(EXPECTED_COLUMNS__PREPROCESS_FEATURES_ICU__GROUPING[group_diag])
 
     # TODO: Test the outlier removal pathway.
+
+
+EXPECTED_COLUMNS__GENERATE_SUMMARY_ICU = {
+    "diag": [
+        "new_icd_code",
+        "mean_frequency",
+        "total_count",
+    ],
+    "out": [
+        "itemid",
+        "mean_frequency",
+        "missing_count",
+        "total_count",
+    ],
+    "chart": [
+        "itemid",
+        "mean_frequency",
+        "total_count",
+    ],
+    "proc": [
+        "itemid",
+        "mean_frequency",
+        "total_count",
+    ],
+    "med": [
+        "itemid",
+        "mean_frequency",
+        "missing_count",
+        "total_count",
+    ],
+}
+
+
+class TestGenerateSummaryIcu:
+    @pytest.mark.filterwarnings("ignore::pandas.errors.DtypeWarning")
+    @pytest.mark.parametrize(
+        "args",
+        [
+            # No ICD code or disease label:
+            dict(use_ICU=True, time=0, label="Mortality", icd_code=None, disease_label=None),
+            dict(use_ICU=True, time=30, label="Readmission", icd_code=None, disease_label=None),
+            dict(use_ICU=True, time=120, label="Readmission", icd_code=None, disease_label=None),
+            dict(use_ICU=True, time=3, label="Length of Stay", icd_code=None, disease_label=None),
+            dict(use_ICU=True, time=7, label="Length of Stay", icd_code=None, disease_label=None),
+            # With ICD code:
+            dict(use_ICU=True, time=0, label="Mortality", icd_code="I50", disease_label=None),
+            dict(use_ICU=True, time=0, label="Mortality", icd_code="J44", disease_label=None),
+            # With disease label:
+            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="I50"),
+            dict(use_ICU=True, time=0, label="Readmission", icd_code=None, disease_label="J44"),
+        ],
+    )
+    def test_common_cases(self, mimiciv_1_0_tiny: Tuple[Path, str], args):
+        root_dir, version = mimiciv_1_0_tiny
+
+        # NOTE: This should really be taken out of here in order to be more unit test -like, and to make tests faster.
+        cohort, cohort_output = day_intervals_cohort_v1.extract_data(  # pylint: disable=unused-variable
+            version=version,
+            root_dir=root_dir.as_posix(),
+            cohort_output=None,
+            summary_output=None,
+            **args,
+        )
+        dfs = feature_preproc_icu.feature_icu(  # pylint: disable=unused-variable  # noqa: F841
+            cohort_output=cohort_output,
+            root_dir=root_dir.as_posix(),
+            version=version,
+            diag_flag=True,
+            out_flag=True,
+            chart_flag=True,
+            proc_flag=True,
+            med_flag=True,
+        )
+        diag, chart = feature_preproc_icu.preprocess_features_icu(  # pylint: disable=unused-variable  # noqa: F841
+            cohort_output=cohort_output,
+            root_dir=root_dir.as_posix(),
+            diag_flag=True,
+            group_diag="both",
+            chart_flag=False,
+            clean_chart=False,
+            impute_outlier_chart=False,
+            thresh=0,
+            left_thresh=0,
+        )
+
+        # This is the actual test:
+        summary_dfs = feature_preproc_icu.generate_summary_icu(
+            cohort_output=cohort_output,
+            root_dir=root_dir.as_posix(),
+            diag_flag=True,
+            out_flag=True,
+            chart_flag=True,
+            proc_flag=True,
+            med_flag=True,
+        )
+
+        dfs_names = list(EXPECTED_COLUMNS__GENERATE_SUMMARY_ICU.keys())
+
+        output_dir = root_dir / "data" / "summary"
+        assert output_dir.exists()
+
+        for df_name in dfs_names:
+            assert (output_dir / f"{df_name}_summary.csv").exists()
+            assert (output_dir / f"{df_name}_features.csv").exists()
+
+        for name, df in zip(dfs_names, summary_dfs):
+            assert isinstance(df, pd.DataFrame)
+
+            assert len(df) > 0
+            assert len(df.columns) > 0
+
+            assert sorted(df.columns.tolist()) == sorted(EXPECTED_COLUMNS__GENERATE_SUMMARY_ICU[name])
