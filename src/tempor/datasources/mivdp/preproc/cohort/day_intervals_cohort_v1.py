@@ -1,6 +1,9 @@
-# Based on
-# https://github.com/healthylaife/MIMIC-IV-Data-Pipeline
-# preprocessing/day_intervals_preproc/day_intervals_cohort.py
+"""Day intervals cohort module for MIMIC-IV v1.0.
+
+Based on:
+https://github.com/healthylaife/MIMIC-IV-Data-Pipeline
+``preprocessing/day_intervals_preproc/day_intervals_cohort.py``
+"""
 
 import datetime
 import os
