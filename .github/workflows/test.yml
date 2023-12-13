@@ -55,10 +55,7 @@ jobs:
       - name: Download test files
         run: |
           pip install requests pyzipper
-          python ${{ github.workspace }}/.github/workflows/scripts/get_test_data.py \
-            "${{ secrets.TEST_DATA_ID }}" \
-            "${{ secrets.TEST_DATA_PASSWORD }}" \
-            "${{ github.workspace }}/data_root/mimiciv"
+          python ${{ github.workspace }}/.github/workflows/scripts/get_test_data.py "${{ secrets.TEST_DATA_ID }}" "${{ secrets.TEST_DATA_PASSWORD }}" "${{ github.workspace }}/data_root/mimiciv"
       - name: Install dependencies
         run: |
           pip install --upgrade pip
