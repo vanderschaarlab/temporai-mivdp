@@ -157,7 +157,7 @@ release = version
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", ".venv"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", ".venv", ".dev"]
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 default_role = "py:obj"
@@ -183,6 +183,12 @@ pygments_style = "tango"
 # If true, keep warnings as "system message" paragraphs in the built documents.
 # keep_warnings = False
 
+# A list of warning types to suppress arbitrary warning messages.
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#confval-suppress_warnings
+# suppress_warnings = ["misc.highlighting_failure"]
+# ^ Highlighting failures seem to be common under this setup when types appear in literal blocks, since these are not
+# critical, we suppress highlighting warnings.
+
 # If this is True, todo emits a warning for each TODO entries. The default is False.
 todo_emit_warnings = True
 
@@ -198,15 +204,16 @@ autodoc_member_order = "bysource"
 # -- Configure autodoc (end) ---------------------------------------
 
 
-# -- Options for HTML output -------------------------------------------------
-
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
+# We use this theme: https://jbms.github.io/sphinx-immaterial/
 html_theme = "sphinx_immaterial"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
+
+# Material theme options (see theme.conf for more information)
 html_theme_options = {
     "icon": {
         "repo": "fontawesome/brands/github",
@@ -292,10 +299,10 @@ html_theme_options = {
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".
-# html_title = None
+html_title = "TemporAI-MIVDP documentation"
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-# html_short_title = None
+html_short_title = "TemporAI-MIVDP"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -304,7 +311,7 @@ html_logo = "assets/TemporAI_MIVDP_Logo_Icon.ico"
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-# html_favicon = None
+html_favicon = "assets/TemporAI_MIVDP_Logo_Icon.ico"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -320,7 +327,7 @@ html_static_path = ["_static"]
 # html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-# html_sidebars = {}
+# html_sidebars = {"**": ["logo-text.html", "globaltoc.html", "localtoc.html", "searchbox.html"]}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
@@ -399,7 +406,7 @@ intersphinx_mapping = {
     "matplotlib": ("https://matplotlib.org", None),
     "numpy": ("https://numpy.org/doc/stable", None),
     "sklearn": ("https://scikit-learn.org/stable", None),
-    "pandas": ("https://pandas.pydata.org/pandas-docs/stable", None),
+    "pandas": ("https://pandas.pydata.org/docs", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
     "setuptools": ("https://setuptools.pypa.io/en/stable/", None),
     "pyscaffold": ("https://pyscaffold.org/en/stable", None),
