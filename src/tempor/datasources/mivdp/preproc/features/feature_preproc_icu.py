@@ -121,7 +121,14 @@ def feature_icu(
             usecols=["stay_id", "charttime", "itemid", "valuenum", "valueuom"],
         )
         chart = uom_conversion.drop_wrong_uom(chart, 0.95)
-        chart[["stay_id", "itemid", "event_time_from_admit", "valuenum"]].to_csv(
+        chart[
+            [
+                "stay_id",
+                "itemid",
+                "event_time_from_admit",
+                "valuenum",
+            ]
+        ].to_csv(
             os.path.join(out_features_dir, "preproc_chart_icu.csv.gz"),
             compression="gzip",
             index=False,
@@ -385,92 +392,101 @@ def generate_summary_icu(
 
 
 def features_selection_icu(
-    cohort_output,  # pylint: disable=unused-argument
-    diag_flag,
-    proc_flag,
-    med_flag,
-    out_flag,
-    chart_flag,
-    group_diag,
-    group_med,
-    group_proc,
-    group_out,
-    group_chart,
+    cohort_output: str,  # pylint: disable=unused-argument
+    root_dir: str,
+    diag_flag: bool,
+    proc_flag: bool,
+    med_flag: bool,
+    out_flag: bool,
+    chart_flag: bool,
+    select_diag: bool,
+    select_med: bool,
+    select_proc: bool,
+    select_out: bool,
+    select_chart: bool,
 ):
+    diag, out, chart, proc, med = None, None, None, None, None
+
+    out_dir = os.path.join(root_dir, "data")
+    out_features_dir = os.path.join(out_dir, "features")
+    out_summary_dir = os.path.join(out_dir, "summary")
+
     if diag_flag:
-        if group_diag:
+        if select_diag:
             print("[FEATURE SELECTION DIAGNOSIS DATA]")
-            diag = pd.read_csv("./data/features/preproc_diag_icu.csv.gz", compression="gzip", header=0)
-            features = pd.read_csv("./data/summary/diag_features.csv", header=0)
+            diag = pd.read_csv(os.path.join(out_features_dir, "preproc_diag_icu.csv.gz"), compression="gzip", header=0)
+            features = pd.read_csv(os.path.join(out_summary_dir, "diag_features.csv"), header=0)
             diag = diag[diag["new_icd_code"].isin(features["new_icd_code"].unique())]
 
             print("Total number of rows", diag.shape[0])
             diag.to_csv(
-                "./data/features/preproc_diag_icu.csv.gz",
+                os.path.join(out_features_dir, "preproc_diag_icu.csv.gz"),
                 compression="gzip",
                 index=False,
             )
             print("[SUCCESSFULLY SAVED DIAGNOSIS DATA]")
 
     if med_flag:
-        if group_med:
+        if select_med:
             print("[FEATURE SELECTION MEDICATIONS DATA]")
-            med = pd.read_csv("./data/features/preproc_med_icu.csv.gz", compression="gzip", header=0)
-            features = pd.read_csv("./data/summary/med_features.csv", header=0)
+            med = pd.read_csv(os.path.join(out_features_dir, "preproc_med_icu.csv.gz"), compression="gzip", header=0)
+            features = pd.read_csv(os.path.join(out_summary_dir, "med_features.csv"), header=0)
             med = med[med["itemid"].isin(features["itemid"].unique())]
             print("Total number of rows", med.shape[0])
             med.to_csv(
-                "./data/features/preproc_med_icu.csv.gz",
+                os.path.join(out_features_dir, "preproc_med_icu.csv.gz"),
                 compression="gzip",
                 index=False,
             )
             print("[SUCCESSFULLY SAVED MEDICATIONS DATA]")
 
     if proc_flag:
-        if group_proc:
+        if select_proc:
             print("[FEATURE SELECTION PROCEDURES DATA]")
-            proc = pd.read_csv("./data/features/preproc_proc_icu.csv.gz", compression="gzip", header=0)
-            features = pd.read_csv("./data/summary/proc_features.csv", header=0)
+            proc = pd.read_csv(os.path.join(out_features_dir, "preproc_proc_icu.csv.gz"), compression="gzip", header=0)
+            features = pd.read_csv(os.path.join(out_summary_dir, "proc_features.csv"), header=0)
             proc = proc[proc["itemid"].isin(features["itemid"].unique())]
             print("Total number of rows", proc.shape[0])
             proc.to_csv(
-                "./data/features/preproc_proc_icu.csv.gz",
+                os.path.join(out_features_dir, "preproc_proc_icu.csv.gz"),
                 compression="gzip",
                 index=False,
             )
             print("[SUCCESSFULLY SAVED PROCEDURES DATA]")
 
     if out_flag:
-        if group_out:
+        if select_out:
             print("[FEATURE SELECTION OUTPUT EVENTS DATA]")
-            out = pd.read_csv("./data/features/preproc_out_icu.csv.gz", compression="gzip", header=0)
-            features = pd.read_csv("./data/summary/out_features.csv", header=0)
+            out = pd.read_csv(os.path.join(out_features_dir, "preproc_out_icu.csv.gz"), compression="gzip", header=0)
+            features = pd.read_csv(os.path.join(out_summary_dir, "out_features.csv"), header=0)
             out = out[out["itemid"].isin(features["itemid"].unique())]
             print("Total number of rows", out.shape[0])
             out.to_csv(
-                "./data/features/preproc_out_icu.csv.gz",
+                os.path.join(out_features_dir, "preproc_out_icu.csv.gz"),
                 compression="gzip",
                 index=False,
             )
             print("[SUCCESSFULLY SAVED OUTPUT EVENTS DATA]")
 
     if chart_flag:
-        if group_chart:
+        if select_chart:
             print("[FEATURE SELECTION CHART EVENTS DATA]")
 
             chart = pd.read_csv(
-                "./data/features/preproc_chart_icu.csv.gz",
+                os.path.join(out_features_dir, "preproc_chart_icu.csv.gz"),
                 compression="gzip",
                 header=0,
                 index_col=None,
             )
 
-            features = pd.read_csv("./data/summary/chart_features.csv", header=0)
+            features = pd.read_csv(os.path.join(out_summary_dir, "chart_features.csv"), header=0)
             chart = chart[chart["itemid"].isin(features["itemid"].unique())]
             print("Total number of rows", chart.shape[0])
             chart.to_csv(
-                "./data/features/preproc_chart_icu.csv.gz",
+                os.path.join(out_features_dir, "preproc_chart_icu.csv.gz"),
                 compression="gzip",
                 index=False,
             )
             print("[SUCCESSFULLY SAVED CHART EVENTS DATA]")
+
+    return diag, out, chart, proc, med
